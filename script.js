@@ -1,94 +1,58 @@
 document.addEventListener('DOMContentLoaded', () => {
+
     const tg = window.Telegram.WebApp;
     tg.ready();
     tg.expand();
 
-    const videoElement = document.getElementById('video');
-    const resultTextElement = document.getElementById('result-text');
-    const resultContainer = document.getElementById('result-box');
+    const scanButton = document.getElementById('scanButton');
+    const fileInput = document.getElementById('fileInput');
+    const resultElement = document.getElementById('result');
 
+    // Это "мозг" из ZXing, но теперь он будет читать из картинок
     const codeReader = new window.ZXing.BrowserMultiFormatReader();
-    let videoStream = null; // Будем хранить поток
 
-    // --- Функция: Запускает цикл поиска ---
-    function runScanLoop() {
-        if (!videoStream) {
-            console.log('Нет видеопотока, сканирование отменено.');
+    // 1. Нажимаем на нашу красивую кнопку
+    scanButton.addEventListener('click', () => {
+        resultElement.textContent = 'Запуск камеры...';
+        // 2. А программно "кликаем" по скрытому инпуту
+        fileInput.click();
+    });
+
+    // 3. Когда пользователь сделал фото и нажал "ОК"
+    fileInput.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (!file) {
+            resultElement.textContent = 'Фото не выбрано.';
             return;
         }
 
-        console.log('ZXing: Запуск цикла поиска...');
-        resultTextElement.textContent = '...';
+        resultElement.textContent = 'Обработка фото...';
 
-        // Мы используем decodeFromStream, как в самой первой удачной версии (v2.0)
-        codeReader.decodeFromStream(videoStream, videoElement, (result, err) => {
+        // Создаем URL для этого фото, чтобы ZXing мог его "прочитать"
+        const imageURL = URL.createObjectURL(file);
 
-            // A. УСПЕХ!
-            if (result) {
-                console.log('ZXing: УСПЕХ!', result.getText());
-                resultTextElement.textContent = result.getText();
+        // 4. Главная команда: распознать код из URL картинки
+        codeReader.decodeFromImageUrl(imageURL)
+            .then(result => {
+                // 5. УСПЕХ!
+                console.log('ZXing: УСПЕХ!', result);
+                resultElement.textContent = result.getText();
 
                 if (navigator.vibrate) {
                     navigator.vibrate(100);
                 }
-
-                //
-                // --- ЛОГИКА ОСТАНОВКИ из v2.2 ---
-                //
-                // Останавливаем *только* сканер. Видео НЕ трогаем.
-                codeReader.reset();
-                console.log('ZXing: Сканер остановлен. Видео продолжает работать.');
-            }
-
-            // B. Ошибка
-            if (err && !(err instanceof window.ZXing.NotFoundException)) {
-                // Игнорируем "NotFound", но выводим другие ошибки
-                console.error('ZXing: Ошибка сканирования:', err);
-            }
-        });
-    }
-
-    // --- Обработчик для перезапуска ---
-    resultContainer.addEventListener('click', () => {
-        console.log('Ручной перезапуск сканера...');
-        // Останавливаем старый цикл (на всякий случай)
-        codeReader.reset();
-        // Запускаем новый
-        runScanLoop();
-    });
-
-    // --- Функция: Запуск сканирования (Один раз при старте) ---
-    //
-    // --- ЛОГИКА ЗАПУСКА из v2.0 (которая не "мигала") ---
-    //
-    function startInitialScan() {
-        console.log('ZXing: Запрос к камере...');
-        resultTextElement.textContent = 'Запрос камеры...';
-
-        navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment' }
-        })
-            .then((stream) => {
-                videoStream = stream; // Сохраняем поток
-                videoElement.srcObject = stream;
-
-                // Мы НЕ ждем 'playing' или 'canplay', чтобы не создавать "мигание".
-                // Мы просто говорим .play() и полагаемся на 'autoplay' в HTML.
-                videoElement.play().catch(e => {
-                    console.error("Ошибка при вызове .play():", e);
-                    resultTextElement.textContent = 'Не удалось запустить видео.';
-                });
-
-                // Сразу запускаем цикл сканирования
-                runScanLoop();
             })
-            .catch((err) => {
-                console.error('Критическая ошибка: не удалось получить доступ к камере.', err);
-                resultTextElement.textContent = 'Ошибка: Нет доступа к камере.';
-                tg.showAlert(`Не удалось получить доступ к камере: ${err.message}`);
-            });
-    }
+            .catch(err => {
+                // 6. ПРОВАЛ
+                console.error('ZXing: Ошибка:', err);
+                resultElement.textContent = 'Код не найден на фото. Попробуйте еще раз.';
+            })
+            .finally(() => {
+                // Очищаем URL, чтобы не было утечек памяти
+                URL.revokeObjectURL(imageURL);
 
-    // --- Запускаем все в первый раз ---
-    startInitialScan();
+                // Важно: сбрасываем инпут, чтобы можно было сфоткать то же самое
+                fileInput.value = null;
+            });
+    });
 });
