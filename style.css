@@ -1,0 +1,61 @@
+/* Используем переменные темы Telegram для "нативности" */
+:root {
+    --bg-color: var(--tg-theme-bg-color, #ffffff);
+    --text-color: var(--tg-theme-text-color, #000000);
+    --button-color: var(--tg-theme-button-color, #007bff);
+    --button-text-color: var(--tg-theme-button-text-color, #ffffff);
+    --secondary-bg: var(--tg-theme-secondary-bg-color, #f0f0f0);
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    margin: 0;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.container {
+    text-align: center;
+    max-width: 100%;
+}
+
+#scanButton {
+    background-color: var(--button-color);
+    color: var(--button-text-color);
+    border: none;
+    border-radius: 12px;
+    padding: 15px 0;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    margin: 20px 0;
+
+    /* Добавляем немного магии */
+    transition: transform 0.1s ease;
+}
+
+#scanButton:active {
+    transform: scale(0.98); /* Эффект нажатия */
+}
+
+.result-box {
+    background-color: var(--secondary-bg);
+    padding: 15px;
+    border-radius: 12px;
+    text-align: left;
+    margin-top: 20px;
+}
+
+h3 {
+    margin-top: 0;
+}
+
+pre {
+    white-space: pre-wrap;      /* Перенос длинных строк */
+    word-wrap: break-word;     /* Перенос очень длинных слов (кодов) */
+    font-size: 16px;
+    color: var(--text-color);
+}
