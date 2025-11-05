@@ -5,19 +5,64 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const videoElement = document.getElementById('video');
     const resultTextElement = document.getElementById('result-text');
+    const resultContainer = document.getElementById('result-box');
 
-    // Наш читатель кодов
     const codeReader = new window.ZXing.BrowserMultiFormatReader();
+    let videoStream = null;
 
-    //
-    // --- НОВОЕ: Переменная для управления потоком ---
-    //
-    let videoStream = null; // Будем хранить здесь поток с камеры
+    // --- Функция: САМ ПРОЦЕСС ПОИСКА ---
+    function runScanLoop() {
+        // Убедимся, что поток есть и видео играет
+        if (videoStream && !videoElement.paused) {
+            console.log('ZXing: Поиск кода...');
+            resultTextElement.textContent = '...';
 
-    // Функция: Начать сканирование
-    function startScanning() {
+            codeReader.decodeFromStream(videoStream, videoElement, (result, err) => {
+
+                // A. УСПЕХ!
+                if (result) {
+                    console.log('ZXing: УСПЕХ!', result.getText());
+                    resultTextElement.textContent = result.getText();
+
+                    if (navigator.vibrate) {
+                        navigator.vibrate(100);
+                    }
+
+                    //
+                    // --- НОВОЕ: СТАВИМ ВИДЕО НА ПАУЗУ ---
+                    //
+                    videoElement.pause(); // <-- Вот оно! Кадр "замерз"
+                    codeReader.reset(); // Сбрасываем ридер
+                }
+
+                // B. Ошибка (просто игнорируем, если не найдено)
+                if (err && !(err instanceof window.ZXing.NotFoundException)) {
+                    console.error('ZXing: Ошибка сканирования:', err);
+                }
+            });
+        }
+    }
+
+    // --- Обработчик для перезапуска ---
+    resultContainer.addEventListener('click', () => {
+        // Если видео на паузе (значит, мы что-то нашли)
+        if (videoElement.paused) {
+            console.log('Ручной перезапуск сканера...');
+
+            // Снова включаем видео
+            videoElement.play().catch(err => {
+                console.error("Ошибка при возобновлении видео:", err);
+            });
+
+            // И снова запускаем цикл поиска
+            runScanLoop();
+        }
+    });
+
+    // --- Функция: Запуск сканирования (Один раз при старте) ---
+    function startInitialScan() {
         console.log('ZXing: Запрос к камере...');
-        resultTextElement.textContent = '...'; // Очищаем старый результат
+        resultTextElement.textContent = 'Запрос камеры...';
 
         navigator.mediaDevices.getUserMedia({
             video: { facingMode: 'environment' }
@@ -25,33 +70,11 @@ document.addEventListener('DOMContentLoaded', () => {
             .then((stream) => {
                 videoStream = stream; // Сохраняем поток
                 videoElement.srcObject = stream;
-                videoElement.play();
 
-                console.log('ZXing: Камера запущена, начинаю декодирование...');
-
-                // Запускаем непрерывное сканирование
-                codeReader.decodeFromStream(stream, videoElement, (result, err) => {
-
-                    // A. УСПЕХ!
-                    if (result) {
-                        console.log('ZXing: УСПЕХ!', result);
-                        resultTextElement.textContent = result.getText();
-
-                        if (navigator.vibrate) {
-                            navigator.vibrate(100);
-                        }
-
-                        //
-                        // --- ГЛАВНОЕ ИЗМЕНЕНИЕ ---
-                        // Мы нашли код, останавливаем сканер!
-                        //
-                        stopScanning();
-                    }
-
-                    // B. Ошибка (просто игнорируем, если не найдено)
-                    if (err && !(err instanceof window.ZXing.NotFoundException)) {
-                        console.error('ZXing: Ошибка сканирования:', err);
-                    }
+                // Важно: ждем, пока видео реально начнет проигрываться
+                videoElement.addEventListener('canplay', () => {
+                    videoElement.play();
+                    runScanLoop(); // Запускаем "поиск"
                 });
             })
             .catch((err) => {
@@ -61,42 +84,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     }
 
-    //
-    // --- НОВАЯ ФУНКЦИЯ: Остановить сканирование ---
-    //
-    function stopScanning() {
-        console.log('ZXing: Сканер остановлен.');
-
-        // Выключаем камеру (поток)
-        if (videoStream) {
-            videoStream.getTracks().forEach(track => track.stop());
-            videoStream = null;
-        }
-
-        // Сбрасываем "читателя", чтобы он был готов к следующему разу
-        codeReader.reset();
-
-        // Можно выключить видео, но это не обязательно
-        // videoElement.srcObject = null;
-    }
-
-    //
-    // --- НОВОЕ: Добавляем интерактив ---
-    //
-    // Вешаем на весь блок с результатом обработчик клика,
-    // чтобы "перезапустить" сканер
-    //
-    document.getElementById('result-box').addEventListener('click', () => {
-        // Если сканер уже выключен (т.е. мы что-то нашли),
-        // запускаем его снова
-        if (!videoStream) {
-            console.log('Ручной перезапуск сканера...');
-            startScanning();
-        }
-    });
-
-
     // --- Запускаем все в первый раз ---
-    startScanning();
-
+    startInitialScan();
 });
