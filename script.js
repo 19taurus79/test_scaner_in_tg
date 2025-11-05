@@ -1,48 +1,67 @@
 // Ждем, пока загрузится вся страница
 document.addEventListener('DOMContentLoaded', () => {
 
-    // Получаем объект Telegram Web App
+    // Инициализируем Telegram
     const tg = window.Telegram.WebApp;
-
-    // Элементы на странице
-    const scanButton = document.getElementById('scanButton');
-    const resultElement = document.getElementById('result');
-
-    // 1. Инициализируем приложение
-    // Это говорит Telegram, что приложение готово
     tg.ready();
-
-    // 2. Расширяем приложение на весь экран
     tg.expand();
 
-    // 3. Проверяем, что версия Telegram поддерживает сканер (6.4+)
-    if (!tg.isVersionAtLeast('6.4')) {
-        // Блокируем кнопку и показываем ошибку
-        scanButton.disabled = true;
-        scanButton.innerText = 'Сканер не поддерживается';
-        tg.showAlert('Ваша версия Telegram устарела. Обновитесь, чтобы использовать сканер.');
-        return;
-    }
+    // Получаем элементы
+    const videoElement = document.getElementById('video');
+    const resultTextElement = document.getElementById('result-text');
 
-    // 4. Вешаем обработчик на кнопку
-    scanButton.addEventListener('click', () => {
+    // Это "мозг" из библиотеки ZXing
+    // Он умеет читать много форматов из видеопотока
+    const codeReader = new window.ZXing.BrowserMultiFormatReader();
 
-        resultElement.textContent = 'Запуск сканера...';
+    console.log('ZXing: Инициализация сканера...');
 
-        // 5. Вызываем сам сканер
-        // Мы просим его распознать что угодно ('text')
-        tg.showScanQrPopup({ text: 'Наведите на штрихкод' }, (scannedText) => {
+    // 1. Запрашиваем доступ к камере
+    // Мы просим 'environment' - это задняя камера
+    navigator.mediaDevices.getUserMedia({
+        video: {
+            facingMode: 'environment'
+        }
+    })
+        .then((stream) => {
+            // 2. Если пользователь разрешил, показываем видео
+            videoElement.srcObject = stream;
+            videoElement.play(); // Запускаем видео
 
-            // 6. Этот код (callback) выполнится, когда что-то отсканируется
-            if (scannedText) {
-                resultElement.textContent = scannedText;
+            console.log('ZXing: Камера запущена, начинаю декодирование...');
 
-                // ВАЖНО: Возвращаем true, чтобы Telegram понял, что мы обработали
-                // результат и можно закрыть окно сканера.
-                return true;
-            } else {
-                resultElement.textContent = 'Сканер был закрыт без результата.';
-            }
+            // 3. Главная команда: непрерывно сканировать видеопоток
+            codeReader.decodeFromStream(stream, videoElement, (result, err) => {
+
+                // A. Если результат ЕСТЬ
+                if (result) {
+                    console.log('ZXing: УСПЕХ!', result);
+
+                    // Показываем результат
+                    resultTextElement.textContent = result.getText();
+
+                    // Издаем вибро-сигнал (очень полезно на складе)
+                    if (navigator.vibrate) {
+                        navigator.vibrate(100); // Вибрация 100 мс
+                    }
+                }
+
+                // B. Если ОШИБКА
+                if (err) {
+                    // NotFoundException - это не "ошибка",
+                    // а просто "в этом кадре штрихкода не найдено".
+                    // Мы ее игнорируем, чтобы не спамить в консоль.
+                    if (!(err instanceof window.ZXing.NotFoundException)) {
+                        console.error('ZXing: Ошибка сканирования:', err);
+                        // resultTextElement.textContent = `Ошибка: ${err.message}`;
+                    }
+                }
+            });
+        })
+        .catch((err) => {
+            // Если пользователь не дал доступ к камере
+            console.error('Критическая ошибка: не удалось получить доступ к камере.', err);
+            resultTextElement.textContent = 'Ошибка: Не удалось получить доступ к камере.';
+            tg.showAlert(`Не удалось получить доступ к камере: ${err.message}`);
         });
-    });
 });

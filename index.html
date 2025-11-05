@@ -3,25 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Тест Сканера WMS</title>
-    <link rel="stylesheet" href="style.css">
+    <title>План Б: ZXing Сканер</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            background: #000;
+            color: #fff;
+        }
+        /* Видео растягиваем на весь экран, но сохраняем пропорции */
+        #video-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Это важно */
+        }
+        /* Блок с результатом */
+        #result-box {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            text-align: center;
+        }
+        #result-text {
+            font-size: 1.2em;
+            color: #4cff91; /* Зеленый, для успеха */
+            font-weight: bold;
+            word-wrap: break-word;
+        }
+    </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>Тест сканера Telegram</h1>
-    <p>Нажмите кнопку, чтобы запустить нативный сканер Telegram.</p>
+<div id="video-container">
+    <video id="video"></video>
+</div>
 
-    <button id="scanButton">🚀 Начать сканирование</button>
-
-    <div class="result-box">
-        <h3>Результат:</h3>
-        <pre id="result">Ожидание сканирования...</pre>
-    </div>
+<div id="result-box">
+    <p>Наведите камеру на штрихкод</p>
+    <div id="result-text">...</div>
 </div>
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
+<script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
+
 <script src="script.js"></script>
+
 </body>
 </html>
