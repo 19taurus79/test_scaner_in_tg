@@ -8,60 +8,59 @@ document.addEventListener('DOMContentLoaded', () => {
     const resultContainer = document.getElementById('result-box');
 
     const codeReader = new window.ZXing.BrowserMultiFormatReader();
-    let videoStream = null;
+    let videoStream = null; // Будем хранить поток
 
     // --- Функция: Запускает цикл поиска ---
     function runScanLoop() {
-        // Убедимся, что поток есть
-        if (videoStream) {
-            console.log('ZXing: Запуск цикла поиска...');
-            resultTextElement.textContent = '...';
-
-            codeReader.decodeFromStream(videoStream, videoElement, (result, err) => {
-
-                // A. УСПЕХ!
-                if (result) {
-                    console.log('ZXing: УСПЕХ!', result.getText());
-                    resultTextElement.textContent = result.getText();
-
-                    if (navigator.vibrate) {
-                        navigator.vibrate(100);
-                    }
-
-                    //
-                    // --- ГЛАВНАЯ ИЗМЕНА ---
-                    // Мы НЕ трогаем видео. Мы просто "глушим" сканер.
-                    //
-                    codeReader.reset(); // <-- Останавливаем цикл сканирования
-                    console.log('ZXing: Сканер остановлен. Видео работает.');
-                }
-
-                // B. Ошибка
-                if (err && !(err instanceof window.ZXing.NotFoundException)) {
-                    // Игнорируем "NotFound", но выводим другие ошибки
-                    console.error('ZXing: Ошибка сканирования:', err);
-                }
-            });
+        if (!videoStream) {
+            console.log('Нет видеопотока, сканирование отменено.');
+            return;
         }
+
+        console.log('ZXing: Запуск цикла поиска...');
+        resultTextElement.textContent = '...';
+
+        // Мы используем decodeFromStream, как в самой первой удачной версии (v2.0)
+        codeReader.decodeFromStream(videoStream, videoElement, (result, err) => {
+
+            // A. УСПЕХ!
+            if (result) {
+                console.log('ZXing: УСПЕХ!', result.getText());
+                resultTextElement.textContent = result.getText();
+
+                if (navigator.vibrate) {
+                    navigator.vibrate(100);
+                }
+
+                //
+                // --- ЛОГИКА ОСТАНОВКИ из v2.2 ---
+                //
+                // Останавливаем *только* сканер. Видео НЕ трогаем.
+                codeReader.reset();
+                console.log('ZXing: Сканер остановлен. Видео продолжает работать.');
+            }
+
+            // B. Ошибка
+            if (err && !(err instanceof window.ZXing.NotFoundException)) {
+                // Игнорируем "NotFound", но выводим другие ошибки
+                console.error('ZXing: Ошибка сканирования:', err);
+            }
+        });
     }
 
     // --- Обработчик для перезапуска ---
     resultContainer.addEventListener('click', () => {
-        // Мы не можем проверить, работает ли сканер,
-        // поэтому мы просто очищаем текст и запускаем цикл заново.
-        // Если он уже был запущен, reset() его остановит,
-        // а эта функция запустит новый.
-
         console.log('Ручной перезапуск сканера...');
-
-        // Сначала останавливаем любой текущий цикл, на всякий случай
+        // Останавливаем старый цикл (на всякий случай)
         codeReader.reset();
-
-        // И запускаем новый
+        // Запускаем новый
         runScanLoop();
     });
 
     // --- Функция: Запуск сканирования (Один раз при старте) ---
+    //
+    // --- ЛОГИКА ЗАПУСКА из v2.0 (которая не "мигала") ---
+    //
     function startInitialScan() {
         console.log('ZXing: Запрос к камере...');
         resultTextElement.textContent = 'Запрос камеры...';
@@ -73,16 +72,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 videoStream = stream; // Сохраняем поток
                 videoElement.srcObject = stream;
 
-                // Ждем, пока видео начнет проигрываться
-                // 'canplay' недостаточно, 'playing' — надежнее
-                videoElement.addEventListener('playing', () => {
-                    console.log('ZXing: Видеопоток активен.');
-                    runScanLoop(); // Запускаем "поиск"
+                // Мы НЕ ждем 'playing' или 'canplay', чтобы не создавать "мигание".
+                // Мы просто говорим .play() и полагаемся на 'autoplay' в HTML.
+                videoElement.play().catch(e => {
+                    console.error("Ошибка при вызове .play():", e);
+                    resultTextElement.textContent = 'Не удалось запустить видео.';
                 });
 
-                // Запускаем воспроизведение
-                videoElement.play().catch(e => console.error("Ошибка play:", e));
-
+                // Сразу запускаем цикл сканирования
+                runScanLoop();
             })
             .catch((err) => {
                 console.error('Критическая ошибка: не удалось получить доступ к камере.', err);
