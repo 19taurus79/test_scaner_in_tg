@@ -4,55 +4,86 @@ document.addEventListener('DOMContentLoaded', () => {
     tg.ready();
     tg.expand();
 
-    const scanButton = document.getElementById('scanButton');
-    const fileInput = document.getElementById('fileInput');
-    const resultElement = document.getElementById('result');
+    const videoElement = document.getElementById('video');
+    const resultTextElement = document.getElementById('result-text');
+    const resultContainer = document.getElementById('result-box');
 
-    // Это "мозг" из ZXing, но теперь он будет читать из картинок
     const codeReader = new window.ZXing.BrowserMultiFormatReader();
 
-    // 1. Нажимаем на нашу красивую кнопку
-    scanButton.addEventListener('click', () => {
-        resultElement.textContent = 'Запуск камеры...';
-        // 2. А программно "кликаем" по скрытому инпуту
-        fileInput.click();
-    });
+    // Переменная для хранения потока камеры
+    let videoStream = null;
 
-    // 3. Когда пользователь сделал фото и нажал "ОК"
-    fileInput.addEventListener('change', (event) => {
-        const file = event.target.files[0];
-        if (!file) {
-            resultElement.textContent = 'Фото не выбрано.';
-            return;
+    // --- Функция: Начать сканирование ---
+    function startScanning() {
+        console.log('v2.0: Запрос к камере...');
+        resultTextElement.textContent = '...';
+
+        navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment' }
+        })
+            .then((stream) => {
+                videoStream = stream; // Сохраняем поток
+                videoElement.srcObject = stream;
+                videoElement.play();
+
+                console.log('v2.0: Камера запущена, начинаю декодирование...');
+
+                // Запускаем непрерывное сканирование
+                codeReader.decodeFromStream(stream, videoElement, (result, err) => {
+
+                    // A. УСПЕХ!
+                    if (result) {
+                        console.log('v2.0: УСПЕХ!', result);
+                        resultTextElement.textContent = result.getText();
+
+                        if (navigator.vibrate) {
+                            navigator.vigate(100);
+                        }
+
+                        //
+                        // --- ВОТ ПРИЧИНА "ЧЕРНОГО ЭКРАНА" ---
+                        //
+                        stopScanning();
+                    }
+
+                    // B. Ошибка
+                    if (err && !(err instanceof window.ZXing.NotFoundException)) {
+                        console.error('v2.0: Ошибка сканирования:', err);
+                    }
+                });
+            })
+            .catch((err) => {
+                console.error('v2.0: Критическая ошибка:', err);
+                resultTextElement.textContent = 'Ошибка: Нет доступа к камере.';
+                tg.showAlert(`Не удалось получить доступ к камере: ${err.message}`);
+            });
+    }
+
+    // --- Функция: Остановить сканирование ---
+    function stopScanning() {
+        console.log('v2.0: Сканер остановлен.');
+
+        // Эта команда ПОЛНОСТЬЮ ВЫКЛЮЧАЕТ камеру
+        if (videoStream) {
+            videoStream.getTracks().forEach(track => track.stop());
+            videoStream = null;
         }
 
-        resultElement.textContent = 'Обработка фото...';
+        // Сбрасываем "читателя"
+        codeReader.reset();
+    }
 
-        // Создаем URL для этого фото, чтобы ZXing мог его "прочитать"
-        const imageURL = URL.createObjectURL(file);
-
-        // 4. Главная команда: распознать код из URL картинки
-        codeReader.decodeFromImageUrl(imageURL)
-            .then(result => {
-                // 5. УСПЕХ!
-                console.log('ZXing: УСПЕХ!', result);
-                resultElement.textContent = result.getText();
-
-                if (navigator.vibrate) {
-                    navigator.vibrate(100);
-                }
-            })
-            .catch(err => {
-                // 6. ПРОВАЛ
-                console.error('ZXing: Ошибка:', err);
-                resultElement.textContent = 'Код не найден на фото. Попробуйте еще раз.';
-            })
-            .finally(() => {
-                // Очищаем URL, чтобы не было утечек памяти
-                URL.revokeObjectURL(imageURL);
-
-                // Важно: сбрасываем инпут, чтобы можно было сфоткать то же самое
-                fileInput.value = null;
-            });
+    // --- Обработчик для перезапуска ---
+    resultContainer.addEventListener('click', () => {
+        // Если потока нет (т.е. мы его "убили" после сканирования)
+        if (!videoStream) {
+            console.log('v2.0: Ручной перезапуск сканера...');
+            startScanning(); // Запускаем все заново
+        }
     });
+
+
+    // --- Запускаем все в первый раз ---
+    startScanning();
+
 });

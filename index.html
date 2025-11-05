@@ -3,68 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>План F: Захват фото</title>
+    <title>План Б (v2.0): Рабочий</title>
     <style>
-        /* Стили из v1.0, они хорошие */
-        :root {
-            --bg-color: var(--tg-theme-bg-color, #ffffff);
-            --text-color: var(--tg-theme-text-color, #000000);
-            --button-color: var(--tg-theme-button-color, #007bff);
-            --button-text-color: var(--tg-theme-button-text-color, #ffffff);
-            --secondary-bg: var(--tg-theme-secondary-bg-color, #f0f0f0);
+        body { margin: 0; background: #000; color: #fff; }
+        #video-container {
+            position: relative; width: 100vw;
+            height: 100vh; overflow: hidden;
         }
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            margin: 0;
-            padding: 20px;
-            box-sizing: border-box;
+        #video {
+            width: 100%; height: 100%;
+            object-fit: cover;
         }
-        .container { text-align: center; }
-
-        #scanButton {
-            background-color: var(--button-color);
-            color: var(--button-text-color);
-            border: none; border-radius: 12px;
-            padding: 15px 0; font-size: 18px;
-            font-weight: 600; cursor: pointer;
-            width: 100%; margin: 20px 0;
+        #result-box {
+            position: absolute; bottom: 0;
+            left: 0; right: 0;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px; text-align: center;
+            cursor: pointer; /* Добавим курсор, чтобы было понятно, что можно нажать */
         }
-
-        .result-box {
-            background-color: var(--secondary-bg);
-            padding: 15px; border-radius: 12px;
-            text-align: left; margin-top: 20px;
-            min-height: 100px;
-        }
-        pre {
-            white-space: pre-wrap; word-wrap: break-word;
-            font-size: 16px; color: var(--text-color);
-        }
-
-        /* * Мы прячем настоящий инпут, он страшный.
-         * Кликать мы будем по нему программно.
-        */
-        #fileInput {
-            display: none;
+        #result-text {
+            font-size: 1.2em; color: #4cff91;
+            font-weight: bold; word-wrap: break-word;
         }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>WMS Сканер (План F)</h1>
-    <p>Нажмите кнопку, чтобы запустить камеру и сделать фото штрихкода.</p>
+<div id="video-container">
+    <video id="video" autoplay muted playsinline></video>
+</div>
 
-    <button id="scanButton">📸 Сделать фото</button>
-
-    <input type="file" capture="environment" id="fileInput">
-
-    <div class="result-box">
-        <h3>Результат:</h3>
-        <pre id="result">Ожидание фото...</pre>
-    </div>
+<div id="result-box" title="Нажмите для нового сканирования">
+    <p>Наведите камеру на штрихкод</p>
+    <div id="result-text">...</div>
 </div>
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
